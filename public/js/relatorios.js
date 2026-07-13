@@ -20,6 +20,8 @@ const PageRelatorios = {
     const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
     const hoje = new Date();
     const mesAtual = meses[hoje.getMonth()];
+    const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+    const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split('T')[0];
 
     container.innerHTML = `
       <div class="stats-grid fade-in">
@@ -97,9 +99,119 @@ const PageRelatorios = {
         <div class="card-header"><h3>Gráfico de Previsão</h3></div>
         <div class="chart-area"><canvas id="chartRelatorio"></canvas></div>
       </div>
+
+      <div class="card" id="reportDetailCard">
+        <div class="card-header">
+          <h3>Relatório Detalhado por Período</h3>
+          <div class="btn-group">
+            <button class="btn btn-outline btn-sm" onclick="PageRelatorios.imprimir()">Imprimir</button>
+            <button class="btn btn-primary btn-sm" onclick="PageRelatorios.gerarPDF()">Gerar PDF</button>
+          </div>
+        </div>
+        <div class="filter-bar">
+          <input type="date" class="form-control" id="reportDataInicio" value="${primeiroDia}">
+          <input type="date" class="form-control" id="reportDataFim" value="${ultimoDia}">
+          <select class="form-control" id="reportStatus">
+            <option value="">Todos os status</option>
+            <option value="pendente">Pendente</option>
+            <option value="pago,recebido">Pago / Recebido</option>
+            <option value="atrasado">Atrasado</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+          <select class="form-control" id="reportTipo">
+            <option value="">Ambos</option>
+            <option value="pagar">Contas a Pagar</option>
+            <option value="receber">Contas a Receber</option>
+          </select>
+          <button class="btn btn-primary" onclick="PageRelatorios.carregarDetalhado()">Filtrar</button>
+        </div>
+        <div id="reportDetailContent" class="table-container">
+          <p class="empty-state" style="padding:20px">Selecione o período e clique em Filtrar.</p>
+        </div>
+      </div>
     `;
 
     this.renderChart(previsao);
+  },
+
+  async carregarDetalhado() {
+    const dataInicio = document.getElementById('reportDataInicio').value;
+    const dataFim = document.getElementById('reportDataFim').value;
+    const status = document.getElementById('reportStatus').value;
+    const tipo = document.getElementById('reportTipo').value;
+
+    if (!dataInicio || !dataFim) {
+      alert('Selecione a data de início e fim do período.');
+      return;
+    }
+
+    const el = document.getElementById('reportDetailContent');
+    el.innerHTML = '<p class="empty-state" style="padding:20px">Carregando...</p>';
+
+    try {
+      const params = new URLSearchParams({ data_inicio: dataInicio, data_fim: dataFim });
+      if (status) params.set('status', status);
+      if (tipo) params.set('tipo', tipo);
+
+      const data = await API.get('/api/relatorios/detalhado?' + params.toString());
+      this.renderDetalhado(el, data.dados, data.resumo);
+    } catch (e) {
+      el.innerHTML = `<p class="empty-state" style="padding:20px;color:var(--danger)">Erro: ${e.message}</p>`;
+    }
+  },
+
+  renderDetalhado(el, dados, resumo) {
+    if (dados.length === 0) {
+      el.innerHTML = '<p class="empty-state" style="padding:20px">Nenhum registro encontrado para o período.</p>';
+      return;
+    }
+
+    el.innerHTML = `
+      <div class="report-summary">
+        <span><strong>Total a Pagar:</strong> ${App.formatCurrency(resumo.totalPagar)}</span>
+        <span><strong>Total a Receber:</strong> ${App.formatCurrency(resumo.totalReceber)}</span>
+        <span><strong>Total Pago:</strong> ${App.formatCurrency(resumo.totalPago)}</span>
+        <span><strong>Total Recebido:</strong> ${App.formatCurrency(resumo.totalRecebido)}</span>
+        <span><strong>Pendente:</strong> ${App.formatCurrency(resumo.totalPendente)}</span>
+        <span><strong>Atrasado:</strong> ${App.formatCurrency(resumo.totalAtrasado)}</span>
+      </div>
+      <table class="report-table" id="reportTable">
+        <thead>
+          <tr>
+            <th>Data Vencto.</th>
+            <th>Descrição</th>
+            <th>Categoria</th>
+            <th>Valor</th>
+            <th>Valor Efetivo</th>
+            <th>Data Efetivação</th>
+            <th>Tipo</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${dados.map(d => `
+            <tr>
+              <td>${App.formatDate(d.data_vencimento)}</td>
+              <td>${d.descricao}</td>
+              <td>${d.categoria}</td>
+              <td class="${d.tipo === 'pagar' ? 'negative' : 'positive'}">${App.formatCurrency(d.valor)}</td>
+              <td>${d.valor_efetivo ? App.formatCurrency(d.valor_efetivo) : '-'}</td>
+              <td>${d.data_efetivacao ? App.formatDate(d.data_efetivacao) : '-'}</td>
+              <td><span class="badge ${d.tipo === 'pagar' ? 'badge-atrasado' : 'badge-recebido'}">${d.tipo === 'pagar' ? 'Pagar' : 'Receber'}</span></td>
+              <td>${App.getStatusBadge(d.status)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  },
+
+  imprimir() {
+    window.print();
+  },
+
+  gerarPDF() {
+    window.print();
   },
 
   renderChart(previsao) {

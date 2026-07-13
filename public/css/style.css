@@ -468,6 +468,39 @@ select.form-control { appearance: auto; }
   font-weight: 600;
 }
 
+/* Report summary */
+.report-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 12px 0;
+  margin-bottom: 16px;
+  border-bottom: 2px solid var(--border);
+  font-size: .85rem;
+}
+
+.report-summary span {
+  background: #f8f9fa;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+}
+
+/* Print styles */
+@media print {
+  body { background: #fff; }
+  .sidebar, .topbar, .sidebar-toggle, .menu-btn, .btn, .filter-bar,
+  .stats-grid, .two-col, .chart-area, #reportDetailCard .card-header .btn-group { display: none !important; }
+  .main-content { margin-left: 0 !important; padding: 0 !important; }
+  .content-area { padding: 0 !important; }
+  .card { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; }
+  .report-table { font-size: .8rem; }
+  .report-table th { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .report-summary span { background: #f0f0f0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .empty-state { display: none; }
+  #reportDetailCard { border: none !important; }
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

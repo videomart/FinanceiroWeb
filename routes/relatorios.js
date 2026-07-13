@@ -70,6 +70,77 @@ router.get('/proximos-vencimentos', (req, res) => {
   res.json(rows);
 });
 
+router.get('/detalhado', (req, res) => {
+  const { data_inicio, data_fim, status, tipo } = req.query;
+
+  let conditionsPagar = [];
+  let conditionsReceber = [];
+  let paramsPagar = [];
+  let paramsReceber = [];
+
+  if (data_inicio && data_fim) {
+    conditionsPagar.push('cp.data_vencimento BETWEEN ? AND ?');
+    paramsPagar.push(data_inicio, data_fim);
+    conditionsReceber.push('cr.data_vencimento BETWEEN ? AND ?');
+    paramsReceber.push(data_inicio, data_fim);
+  }
+
+  if (status) {
+    const statusList = status.split(',').filter(Boolean);
+    if (statusList.length > 0) {
+      const placeholders = statusList.map(() => '?').join(',');
+      conditionsPagar.push(`cp.status IN (${placeholders})`);
+      paramsPagar.push(...statusList);
+      conditionsReceber.push(`cr.status IN (${placeholders})`);
+      paramsReceber.push(...statusList);
+    }
+  }
+
+  const wherePagar = conditionsPagar.length > 0 ? 'WHERE ' + conditionsPagar.join(' AND ') : '';
+  const whereReceber = conditionsReceber.length > 0 ? 'WHERE ' + conditionsReceber.join(' AND ') : '';
+
+  let results = [];
+
+  if (!tipo || tipo === 'pagar') {
+    const pagar = db.prepare(`
+      SELECT 'pagar' as tipo, cp.id, cp.descricao, cp.valor, cp.valor_pago as valor_efetivo,
+             cp.data_vencimento, cp.data_pagamento as data_efetivacao, cp.status,
+             COALESCE(c.nome,'Sem categoria') as categoria, cp.observacao
+      FROM contas_pagar cp
+      LEFT JOIN categorias c ON cp.categoria_id = c.id
+      ${wherePagar}
+      ORDER BY cp.data_vencimento ASC
+    `).all(...paramsPagar);
+    results = results.concat(pagar);
+  }
+
+  if (!tipo || tipo === 'receber') {
+    const receber = db.prepare(`
+      SELECT 'receber' as tipo, cr.id, cr.descricao, cr.valor, cr.valor_recebido as valor_efetivo,
+             cr.data_vencimento, cr.data_recebimento as data_efetivacao, cr.status,
+             COALESCE(c.nome,'Sem categoria') as categoria, cr.observacao
+      FROM contas_receber cr
+      LEFT JOIN categorias c ON cr.categoria_id = c.id
+      ${whereReceber}
+      ORDER BY cr.data_vencimento ASC
+    `).all(...paramsReceber);
+    results = results.concat(receber);
+  }
+
+  results.sort((a, b) => (a.data_vencimento || '').localeCompare(b.data_vencimento || ''));
+
+  const resumo = {
+    totalPagar: results.filter(r => r.tipo === 'pagar').reduce((s, r) => s + r.valor, 0),
+    totalReceber: results.filter(r => r.tipo === 'receber').reduce((s, r) => s + r.valor, 0),
+    totalPago: results.filter(r => r.tipo === 'pagar' && r.status === 'pago').reduce((s, r) => s + (r.valor_efetivo || 0), 0),
+    totalRecebido: results.filter(r => r.tipo === 'receber' && r.status === 'recebido').reduce((s, r) => s + (r.valor_efetivo || 0), 0),
+    totalPendente: results.filter(r => r.status === 'pendente').reduce((s, r) => s + r.valor, 0),
+    totalAtrasado: results.filter(r => r.status === 'atrasado').reduce((s, r) => s + r.valor, 0),
+  };
+
+  res.json({ dados: results, resumo });
+});
+
 router.get('/por-categoria', (req, res) => {
   const { data_inicio, data_fim } = req.query;
   if (data_inicio && data_fim) {
