@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EasyMoney - Controle Financeiro</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <h1>EasyMoney</h1>
+        <button class="sidebar-toggle" id="sidebarToggle">&times;</button>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#/dashboard" class="nav-item active" data-page="dashboard">
+          <span class="nav-icon">&#9776;</span>
+          <span class="nav-label">Dashboard</span>
+        </a>
+        <a href="#/contas-pagar" class="nav-item" data-page="contas-pagar">
+          <span class="nav-icon">&#128179;</span>
+          <span class="nav-label">Contas a Pagar</span>
+        </a>
+        <a href="#/contas-receber" class="nav-item" data-page="contas-receber">
+          <span class="nav-icon">&#128176;</span>
+          <span class="nav-label">Contas a Receber</span>
+        </a>
+        <a href="#/relatorios" class="nav-item" data-page="relatorios">
+          <span class="nav-icon">&#128202;</span>
+          <span class="nav-label">Relatórios</span>
+        </a>
+      </nav>
+    </aside>
+
+    <main class="main-content" id="mainContent">
+      <header class="topbar">
+        <button class="menu-btn" id="menuBtn">&#9776;</button>
+        <h2 id="pageTitle">Dashboard</h2>
+        <div class="topbar-actions">
+          <span class="current-date" id="currentDate"></span>
+        </div>
+      </header>
+      <div class="content-area" id="contentArea"></div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay" style="display:none">
+    <div class="modal" id="modal">
+      <div class="modal-header">
+        <h3 id="modalTitle"></h3>
+        <button class="modal-close" id="modalClose">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer" id="modalFooter"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/contasPagar.js"></script>
+  <script src="js/contasReceber.js"></script>
+  <script src="js/relatorios.js"></script>
+</body>
+</html>

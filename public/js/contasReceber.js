@@ -1,0 +1,204 @@
+const PageContasReceber = {
+  page: 1,
+  filterStatus: '',
+
+  async render(container) {
+    App.showLoading('contentArea');
+    try {
+      const [stats, data] = await Promise.all([
+        API.get('/api/contas-receber/estatisticas'),
+        API.get(`/api/contas-receber?page=${this.page}&limit=50&status=${this.filterStatus}`)
+      ]);
+      this.build(container, stats, data);
+    } catch (e) {
+      App.showError('contentArea', 'Erro ao carregar contas: ' + e.message);
+    }
+  },
+
+  build(container, stats, data) {
+    container.innerHTML = `
+      <div class="stats-grid fade-in">
+        <div class="stat-card info"><div class="stat-label">A Receber</div><div class="stat-value">${stats.pendentes.quantidade}</div><small>${App.formatCurrency(stats.pendentes.total)}</small></div>
+        <div class="stat-card negative"><div class="stat-label">Atrasados</div><div class="stat-value">${stats.atrasadas.quantidade}</div><small>${App.formatCurrency(stats.atrasadas.total)}</small></div>
+        <div class="stat-card positive"><div class="stat-label">Recebidos</div><div class="stat-value">${stats.recebidas.quantidade}</div><small>${App.formatCurrency(stats.recebidas.total)}</small></div>
+        <div class="stat-card warning"><div class="stat-label">Vencendo em 7 dias</div><div class="stat-value">${stats.proximas.length}</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Todas as Contas a Receber</h3>
+          <button class="btn btn-primary" onclick="PageContasReceber.abrirForm()">+ Nova Conta</button>
+        </div>
+        <div class="filter-bar">
+          <select class="form-control" id="filterStatus" onchange="PageContasReceber.filtrar()">
+            <option value="">Todos os status</option>
+            <option value="pendente" ${this.filterStatus === 'pendente' ? 'selected' : ''}>Pendentes</option>
+            <option value="recebido" ${this.filterStatus === 'recebido' ? 'selected' : ''}>Recebidas</option>
+            <option value="atrasado" ${this.filterStatus === 'atrasado' ? 'selected' : ''}>Atrasadas</option>
+            <option value="cancelado" ${this.filterStatus === 'cancelado' ? 'selected' : ''}>Canceladas</option>
+          </select>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead><tr><th>Descrição</th><th>Valor</th><th>Vencimento</th><th>Categoria</th><th>Rec</th><th>Status</th><th>Recebimento</th><th>Ações</th></tr></thead>
+            <tbody>
+              ${data.rows.length === 0 ? '<tr><td colspan="8" class="empty-state">Nenhuma conta encontrada</td></tr>' :
+              data.rows.map(c => `<tr>
+                <td><strong>${c.descricao}</strong>${c.observacao ? `<br><small>${c.observacao}</small>` : ''}</td>
+                <td>${App.formatCurrency(c.valor)}</td>
+                <td>${App.formatDate(c.data_vencimento)}</td>
+                <td>${c.categoria_nome || '-'}</td>
+                <td>${c.recorrente ? '<span class="badge badge-recebido">Sim</span>' : '-'}</td>
+                <td>${App.getStatusBadge(c.status, { pendente: 'Pendente', recebido: 'Recebido', atrasado: 'Atrasado', cancelado: 'Cancelado' })}</td>
+                <td>${c.status === 'recebido' ? `${App.formatDate(c.data_recebimento)}<br><small>${App.formatCurrency(c.valor_recebido)}</small>` : '-'}</td>
+                <td>
+                  <div class="btn-group">
+                    ${c.status !== 'recebido' && c.status !== 'cancelado' ? `<button class="btn btn-success btn-sm" onclick="PageContasReceber.receber(${c.id})">Receber</button>` : ''}
+                    <button class="btn btn-outline btn-sm" onclick="PageContasReceber.abrirForm(${c.id})">Editar</button>
+                    <button class="btn btn-danger btn-sm" onclick="PageContasReceber.excluir(${c.id})">Excluir</button>
+                  </div>
+                </td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  },
+
+  filtrar() {
+    this.filterStatus = document.getElementById('filterStatus').value;
+    this.page = 1;
+    this.render(document.getElementById('contentArea'));
+  },
+
+  async abrirForm(id) {
+    let c = { descricao: '', valor: '', data_vencimento: '', categoria_id: '', observacao: '', recorrente: false, frequencia: '' };
+    if (id) {
+      try { c = await API.get(`/api/contas-receber/${id}`); } catch (e) { return; }
+    }
+    const cats = await getCategorias();
+
+    App.openModal(id ? 'Editar Conta a Receber' : 'Nova Conta a Receber', `
+      <div class="form-group">
+        <label>Descrição *</label>
+        <input class="form-control" id="f_descricao" value="${c.descricao}" placeholder="Ex: Salário">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Valor *</label>
+          <input class="form-control" id="f_valor" type="number" step="0.01" value="${c.valor}" placeholder="0,00">
+        </div>
+        <div class="form-group">
+          <label>Data de Vencimento *</label>
+          <input class="form-control" id="f_data_vencimento" type="date" value="${c.data_vencimento}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Categoria</label>
+        <select class="form-control" id="f_categoria_id">
+          <option value="">Selecione...</option>
+          ${cats.filter(cat => cat.tipo === 'receita' || cat.tipo === 'ambos').map(cat => `<option value="${cat.id}" ${cat.id === c.categoria_id ? 'selected' : ''}>${cat.nome}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Observação</label>
+        <textarea class="form-control" id="f_observacao" rows="2">${c.observacao || ''}</textarea>
+      </div>
+      <hr>
+      <h4 style="margin-bottom:12px">Recorrência</h4>
+      <div class="form-row">
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="f_recorrente" ${c.recorrente ? 'checked' : ''} onchange="document.getElementById('freqGroup').style.display=this.checked?'block':'none'">
+            Conta Recorrente
+          </label>
+        </div>
+        <div class="form-group" id="freqGroup" style="${c.recorrente ? 'display:block' : 'display:none'}">
+          <label>Frequência</label>
+          <select class="form-control" id="f_frequencia">
+            <option value="mensal" ${c.frequencia === 'mensal' ? 'selected' : ''}>Mensal</option>
+            <option value="semanal" ${c.frequencia === 'semanal' ? 'selected' : ''}>Semanal</option>
+            <option value="quinzenal" ${c.frequencia === 'quinzenal' ? 'selected' : ''}>Quinzenal</option>
+            <option value="bimestral" ${c.frequencia === 'bimestral' ? 'selected' : ''}>Bimestral</option>
+            <option value="trimestral" ${c.frequencia === 'trimestral' ? 'selected' : ''}>Trimestral</option>
+            <option value="semestral" ${c.frequencia === 'semestral' ? 'selected' : ''}>Semestral</option>
+            <option value="anual" ${c.frequencia === 'anual' ? 'selected' : ''}>Anual</option>
+          </select>
+        </div>
+      </div>
+    `, `
+      <button class="btn btn-outline" onclick="App.closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="PageContasReceber.salvar(${id || ''})">Salvar</button>
+    `);
+  },
+
+  async salvar(id) {
+    const data = {
+      descricao: document.getElementById('f_descricao').value,
+      valor: parseFloat(document.getElementById('f_valor').value) || 0,
+      data_vencimento: document.getElementById('f_data_vencimento').value,
+      categoria_id: parseInt(document.getElementById('f_categoria_id').value) || null,
+      observacao: document.getElementById('f_observacao').value,
+      recorrente: document.getElementById('f_recorrente').checked,
+      frequencia: document.getElementById('f_recorrente').checked ? document.getElementById('f_frequencia').value : null
+    };
+    if (!data.descricao || !data.valor || !data.data_vencimento) { alert('Preencha todos os campos'); return; }
+    try {
+      if (id) { await API.put(`/api/contas-receber/${id}`, data); }
+      else { await API.post('/api/contas-receber', data); }
+      App.closeModal();
+      this.render(document.getElementById('contentArea'));
+    } catch (e) { alert('Erro: ' + e.message); }
+  },
+
+  async receber(id) {
+    const conta = await API.get(`/api/contas-receber/${id}`);
+    const hoje = new Date().toISOString().split('T')[0];
+    let msgRec = '';
+    if (conta.recorrente) msgRec = '<p style="color:var(--success);margin-top:8px"><strong>Conta recorrente:</strong> ao receber, será gerada automaticamente a próxima parcela.</p>';
+    App.openModal('Registrar Recebimento', `
+      <div class="form-group">
+        <label>Conta</label>
+        <p><strong>${conta.descricao}</strong></p>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Valor Original</label>
+          <p><strong>${App.formatCurrency(conta.valor)}</strong></p>
+        </div>
+        <div class="form-group">
+          <label>Valor Recebido *</label>
+          <input class="form-control" id="f_valor_recebido" type="number" step="0.01" value="${conta.valor}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Data do Recebimento *</label>
+        <input class="form-control" id="f_data_recebimento" type="date" value="${hoje}">
+      </div>
+      ${msgRec}
+    `, `
+      <button class="btn btn-outline" onclick="App.closeModal()">Cancelar</button>
+      <button class="btn btn-success" onclick="PageContasReceber.confirmarRecebimento(${id})">Confirmar Recebimento</button>
+    `);
+  },
+
+  async confirmarRecebimento(id) {
+    const data = {
+      valor_recebido: parseFloat(document.getElementById('f_valor_recebido').value) || 0,
+      data_recebimento: document.getElementById('f_data_recebimento').value
+    };
+    try {
+      await API.put(`/api/contas-receber/${id}/receber`, data);
+      App.closeModal();
+      this.render(document.getElementById('contentArea'));
+    } catch (e) { alert('Erro: ' + e.message); }
+  },
+
+  async excluir(id) {
+    if (!confirm('Tem certeza?')) return;
+    try {
+      await API.del(`/api/contas-receber/${id}`);
+      this.render(document.getElementById('contentArea'));
+    } catch (e) { alert('Erro: ' + e.message); }
+  }
+};
