@@ -1,0 +1,13 @@
+services:
+  easymoney:
+    build: .
+    ports:
+      - "3001:3001"
+    volumes:
+      - easymoney-data:/app/data
+    environment:
+      - PORT=3001
+    restart: unless-stopped
+
+volumes:
+  easymoney-data:
