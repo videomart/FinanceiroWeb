@@ -12,6 +12,12 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GOOGLE_CALLBACK_URL=https://contas.tvtupi.com.br/auth/google/callback
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_SECURE=${SMTP_SECURE}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM}
       - VIRTUAL_HOST=contas.tvtupi.com.br
       - VIRTUAL_PORT=3002
       - LETSENCRYPT_HOST=contas.tvtupi.com.br

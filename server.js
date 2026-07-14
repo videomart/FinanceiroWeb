@@ -57,6 +57,26 @@ initDatabase().then(() => {
       console.log(`4. Adicione redirect URI: http://localhost:${PORT}/auth/google/callback`);
       console.log('5. Edite config.json com clientID e clientSecret\n');
     }
+
+    const { verificarEEnviarNotificacoes } = require('./emailService');
+    const UM_DIA = 24 * 60 * 60 * 1000;
+    const HORARIO_VERIFICACAO = 8;
+    function agendarProximaVerificacao() {
+      const agora = new Date();
+      const proximo = new Date(agora);
+      proximo.setHours(HORARIO_VERIFICACAO, 0, 0, 0);
+      if (proximo <= agora) proximo.setDate(proximo.getDate() + 1);
+      const delay = proximo - agora;
+      console.log(`[Notificação] Próxima verificação: ${proximo.toLocaleString('pt-BR')}`);
+      setTimeout(async () => {
+        await verificarEEnviarNotificacoes();
+        agendarProximaVerificacao();
+      }, delay);
+    }
+    if (config.smtp.host) {
+      console.log('[Notificação] Verificação diária de contas a vencer agendada às 08:00');
+      agendarProximaVerificacao();
+    }
   });
 }).catch(err => {
   console.error('Erro ao inicializar banco de dados:', err);

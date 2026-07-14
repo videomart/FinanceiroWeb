@@ -157,6 +157,17 @@ function createTables(d) {
       created_at DATETIME DEFAULT (datetime('now','localtime')),
       updated_at DATETIME DEFAULT (datetime('now','localtime'))
     );
+
+    CREATE TABLE IF NOT EXISTS notificacoes_enviadas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cliente_id INTEGER NOT NULL REFERENCES clientes(id),
+      tipo_conta TEXT NOT NULL CHECK(tipo_conta IN ('pagar','receber')),
+      conta_id INTEGER NOT NULL,
+      usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
+      dias_antes INTEGER NOT NULL,
+      enviado_em DATETIME DEFAULT (datetime('now','localtime')),
+      UNIQUE(cliente_id, tipo_conta, conta_id, usuario_id, dias_antes)
+    );
   `);
 }
 

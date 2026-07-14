@@ -11,6 +11,7 @@ const PageAdmin = {
           <button class="btn ${this.currentTab === 'clientes' ? 'btn-primary' : 'btn-outline'}" onclick="PageAdmin.switchTab('clientes')">Clientes</button>
           <button class="btn ${this.currentTab === 'usuarios' ? 'btn-primary' : 'btn-outline'}" onclick="PageAdmin.switchTab('usuarios')">Usuários</button>
           <button class="btn ${this.currentTab === 'categorias' ? 'btn-primary' : 'btn-outline'}" onclick="PageAdmin.switchTab('categorias')">Categorias</button>
+          <button class="btn ${this.currentTab === 'notificacoes' ? 'btn-primary' : 'btn-outline'}" onclick="PageAdmin.switchTab('notificacoes')">Notificações</button>
         </div>
         <div id="adminContent"></div>
       </div>
@@ -20,8 +21,10 @@ const PageAdmin = {
 
   switchTab(tab) {
     this.currentTab = tab;
+    document.querySelectorAll('.admin-tabs .btn').forEach(b => b.className = 'btn btn-outline');
+    const tabNames = { clientes: 'Clientes', usuarios: 'Usuários', categorias: 'Categorias', notificacoes: 'Notificações' };
     document.querySelectorAll('.admin-tabs .btn').forEach(b => {
-      b.className = 'btn ' + (b.textContent.includes(tab === 'clientes' ? 'Clientes' : 'Usuários') ? 'btn-primary' : 'btn-outline');
+      if (b.textContent === tabNames[tab]) b.className = 'btn btn-primary';
     });
     this.loadTabContent();
   },
@@ -32,6 +35,8 @@ const PageAdmin = {
       await this.renderClientes(el);
     } else if (this.currentTab === 'categorias') {
       await this.renderCategorias(el);
+    } else if (this.currentTab === 'notificacoes') {
+      await this.renderNotificacoes(el);
     } else {
       await this.renderUsuarios(el);
     }
@@ -360,6 +365,107 @@ const PageAdmin = {
     try {
       await API.del(`/api/categorias/${id}`);
       this.renderCategorias(document.getElementById('adminContent'));
+    } catch (e) {
+      alert('Erro: ' + e.message);
+    }
+  },
+
+  async renderNotificacoes(el) {
+    el.innerHTML = '<p>Carregando...</p>';
+    try {
+      const [status, notificacoes] = await Promise.all([
+        API.get('/api/admin/email/status'),
+        API.get('/api/admin/email/notificacoes')
+      ]);
+      el.innerHTML = `
+        <div style="margin-bottom:20px">
+          <h4 style="margin:0 0 8px">Configuração SMTP</h4>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <div>
+              <label style="font-size:.85rem;color:var(--text-secondary)">Servidor SMTP</label>
+              <input class="form-control" id="smtpHost" value="${status.host || ''}" placeholder="smtp.gmail.com">
+            </div>
+            <div>
+              <label style="font-size:.85rem;color:var(--text-secondary)">Porta</label>
+              <input class="form-control" id="smtpPort" type="number" value="${status.port || 587}">
+            </div>
+            <div>
+              <label style="font-size:.85rem;color:var(--text-secondary)">Usuário</label>
+              <input class="form-control" id="smtpUser" value="${status.user || ''}" placeholder="seu@email.com">
+            </div>
+            <div>
+              <label style="font-size:.85rem;color:var(--text-secondary)">Senha</label>
+              <input class="form-control" id="smtpPass" type="password" value="" placeholder="••••••••">
+            </div>
+            <div>
+              <label style="font-size:.85rem;color:var(--text-secondary)">Email Remetente</label>
+              <input class="form-control" id="smtpFrom" value="${status.from || ''}" placeholder="EasyMoney <noreply@seudominio.com.br>">
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:16px">
+            <button class="btn btn-primary" onclick="PageAdmin.salvarSmtp()">Salvar Configuração</button>
+            <button class="btn btn-outline" onclick="PageAdmin.testarEmail()">Enviar Email de Teste</button>
+            <button class="btn btn-outline" onclick="PageAdmin.verificarAgora()">Verificar Contas Agora</button>
+          </div>
+        </div>
+        <div>
+          <h4 style="margin:0 0 12px">Notificações Enviadas</h4>
+          ${notificacoes.length === 0 ? '<p style="color:var(--text-secondary)">Nenhuma notificação enviada ainda.</p>' : `
+          <div class="table-container">
+            <table>
+              <thead><tr><th>Data</th><th>Usuário</th><th>Cliente</th><th>Tipo</th><th>Dias</th></tr></thead>
+              <tbody>
+                ${notificacoes.map(n => `
+                  <tr>
+                    <td>${new Date(n.enviado_em).toLocaleString('pt-BR')}</td>
+                    <td>${n.usuario_nome} (${n.usuario_email})</td>
+                    <td>${n.cliente_nome}</td>
+                    <td><span class="badge badge-${n.tipo_conta === 'pagar' ? 'danger' : 'success'}">${n.tipo_conta === 'pagar' ? 'A Pagar' : 'A Receber'}</span></td>
+                    <td>${n.dias_antes} dia(s)</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>`}
+        </div>
+      `;
+    } catch (e) {
+      el.innerHTML = `<p style="color:var(--danger)">Erro ao carregar notificações: ${e.message}</p>`;
+    }
+  },
+
+  async salvarSmtp() {
+    const smtpConfig = {
+      host: document.getElementById('smtpHost').value.trim(),
+      port: parseInt(document.getElementById('smtpPort').value) || 587,
+      user: document.getElementById('smtpUser').value.trim(),
+      pass: document.getElementById('smtpPass').value,
+      from: document.getElementById('smtpFrom').value.trim()
+    };
+    try {
+      const res = await API.post('/api/admin/email/config', smtpConfig);
+      alert(res.message || 'Configuração salva! Reinicie o servidor para aplicar.');
+    } catch (e) {
+      alert('Erro: ' + e.message);
+    }
+  },
+
+  async testarEmail() {
+    const email = prompt('Digite o email para enviar o teste:');
+    if (!email) return;
+    try {
+      const res = await API.post('/api/admin/email/teste', { email });
+      alert(res.message || 'Email enviado com sucesso!');
+    } catch (e) {
+      alert('Erro: ' + e.message);
+    }
+  },
+
+  async verificarAgora() {
+    try {
+      const res = await API.post('/api/admin/email/verificar');
+      alert(res.message || 'Verificação concluída!');
+      this.renderNotificacoes(document.getElementById('adminContent'));
     } catch (e) {
       alert('Erro: ' + e.message);
     }
