@@ -10,6 +10,4 @@ COPY config.example.json ./config.example.json
 
 EXPOSE 3001
 
-VOLUME /app/data
-
 CMD ["node", "server.js"]

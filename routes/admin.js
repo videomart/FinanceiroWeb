@@ -24,8 +24,8 @@ router.post('/clientes', (req, res) => {
     const cliente = db.prepare('SELECT * FROM clientes WHERE id = ?').get(r.lastInsertRowid);
     const { CATEGORIAS_BASE } = require('../database');
     const insert = db.prepare('INSERT OR IGNORE INTO categorias (nome, tipo, cliente_id) VALUES (?, ?, ?)');
-    for (const [nome, tipo] of CATEGORIAS_BASE) {
-      try { insert.run(nome, tipo, cliente.id); } catch (e) { }
+    for (const [catNome, catTipo] of CATEGORIAS_BASE) {
+      try { insert.run(catNome, catTipo, cliente.id); } catch (e) { }
     }
     db.persist();
     res.status(201).json(cliente);

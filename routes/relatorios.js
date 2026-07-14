@@ -109,9 +109,8 @@ router.get('/detalhado', (req, res) => {
     const pagar = db.prepare(`
       SELECT 'pagar' as tipo, cp.id, cp.descricao, cp.valor, cp.valor_pago as valor_efetivo,
              cp.data_vencimento, cp.data_pagamento as data_efetivacao, cp.status,
-             COALESCE(c.nome,'Sem categoria') as categoria, cp.observacao
+             COALESCE(cp.categoria_nome,'Sem categoria') as categoria, cp.observacao
       FROM contas_pagar cp
-      LEFT JOIN categorias c ON cp.categoria_id = c.id
       ${wherePagar}
       ORDER BY cp.data_vencimento ASC
     `).all(...paramsPagar);
@@ -122,9 +121,8 @@ router.get('/detalhado', (req, res) => {
     const receber = db.prepare(`
       SELECT 'receber' as tipo, cr.id, cr.descricao, cr.valor, cr.valor_recebido as valor_efetivo,
              cr.data_vencimento, cr.data_recebimento as data_efetivacao, cr.status,
-             COALESCE(c.nome,'Sem categoria') as categoria, cr.observacao
+             COALESCE(cr.categoria_nome,'Sem categoria') as categoria, cr.observacao
       FROM contas_receber cr
-      LEFT JOIN categorias c ON cr.categoria_id = c.id
       ${whereReceber}
       ORDER BY cr.data_vencimento ASC
     `).all(...paramsReceber);
@@ -149,20 +147,20 @@ router.get('/por-categoria', (req, res) => {
   const { data_inicio, data_fim } = req.query;
   const clienteId = req.user.clienteId;
   if (data_inicio && data_fim) {
-    const pagar = db.prepare(`SELECT c.nome, c.id as categoria_id, COALESCE(SUM(cp.valor),0) as total
-      FROM contas_pagar cp LEFT JOIN categorias c ON cp.categoria_id = c.id
-      WHERE cp.status='pendente' AND cp.data_vencimento BETWEEN ? AND ? AND cp.cliente_id=? GROUP BY c.id ORDER BY total DESC`).all(data_inicio, data_fim, clienteId);
-    const receber = db.prepare(`SELECT c.nome, c.id as categoria_id, COALESCE(SUM(cr.valor),0) as total
-      FROM contas_receber cr LEFT JOIN categorias c ON cr.categoria_id = c.id
-      WHERE cr.status='pendente' AND cr.data_vencimento BETWEEN ? AND ? AND cr.cliente_id=? GROUP BY c.id ORDER BY total DESC`).all(data_inicio, data_fim, clienteId);
+    const pagar = db.prepare(`SELECT cp.categoria_nome as nome, COALESCE(SUM(cp.valor),0) as total
+      FROM contas_pagar cp
+      WHERE cp.status='pendente' AND cp.data_vencimento BETWEEN ? AND ? AND cp.cliente_id=? AND cp.categoria_nome IS NOT NULL GROUP BY cp.categoria_nome ORDER BY total DESC`).all(data_inicio, data_fim, clienteId);
+    const receber = db.prepare(`SELECT cr.categoria_nome as nome, COALESCE(SUM(cr.valor),0) as total
+      FROM contas_receber cr
+      WHERE cr.status='pendente' AND cr.data_vencimento BETWEEN ? AND ? AND cr.cliente_id=? AND cr.categoria_nome IS NOT NULL GROUP BY cr.categoria_nome ORDER BY total DESC`).all(data_inicio, data_fim, clienteId);
     return res.json({ pagar, receber });
   }
-  const pagar = db.prepare(`SELECT c.nome, c.id as categoria_id, COALESCE(SUM(cp.valor),0) as total
-    FROM contas_pagar cp LEFT JOIN categorias c ON cp.categoria_id = c.id
-    WHERE cp.status='pendente' AND cp.cliente_id=? GROUP BY c.id ORDER BY total DESC`).all(clienteId);
-  const receber = db.prepare(`SELECT c.nome, c.id as categoria_id, COALESCE(SUM(cr.valor),0) as total
-    FROM contas_receber cr LEFT JOIN categorias c ON cr.categoria_id = c.id
-    WHERE cr.status='pendente' AND cr.cliente_id=? GROUP BY c.id ORDER BY total DESC`).all(clienteId);
+  const pagar = db.prepare(`SELECT cp.categoria_nome as nome, COALESCE(SUM(cp.valor),0) as total
+    FROM contas_pagar cp
+    WHERE cp.status='pendente' AND cp.cliente_id=? AND cp.categoria_nome IS NOT NULL GROUP BY cp.categoria_nome ORDER BY total DESC`).all(clienteId);
+  const receber = db.prepare(`SELECT cr.categoria_nome as nome, COALESCE(SUM(cr.valor),0) as total
+    FROM contas_receber cr
+    WHERE cr.status='pendente' AND cr.cliente_id=? AND cr.categoria_nome IS NOT NULL GROUP BY cr.categoria_nome ORDER BY total DESC`).all(clienteId);
   res.json({ pagar, receber });
 });
 

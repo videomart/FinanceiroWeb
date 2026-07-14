@@ -163,14 +163,14 @@ async function getCategorias() {
     return await API.get('/api/categorias');
   } catch (e) {}
   return [
-    { id: 1, nome: 'Salário', tipo: 'receita' }, { id: 2, nome: 'Freelance', tipo: 'receita' },
-    { id: 3, nome: 'Investimentos', tipo: 'receita' }, { id: 4, nome: 'Aluguel', tipo: 'despesa' },
-    { id: 5, nome: 'Água', tipo: 'despesa' }, { id: 6, nome: 'Luz', tipo: 'despesa' },
-    { id: 7, nome: 'Internet', tipo: 'despesa' }, { id: 8, nome: 'Telefone', tipo: 'despesa' },
-    { id: 9, nome: 'Alimentação', tipo: 'despesa' }, { id: 10, nome: 'Transporte', tipo: 'despesa' },
-    { id: 11, nome: 'Saúde', tipo: 'despesa' }, { id: 12, nome: 'Educação', tipo: 'despesa' },
-    { id: 13, nome: 'Lazer', tipo: 'despesa' }, { id: 14, nome: 'Assinaturas', tipo: 'despesa' },
-    { id: 15, nome: 'Impostos', tipo: 'despesa' }, { id: 16, nome: 'Outros', tipo: 'ambos' }
+    { nome: 'Salário', tipo: 'receita' }, { nome: 'Freelance', tipo: 'receita' },
+    { nome: 'Investimentos', tipo: 'receita' }, { nome: 'Aluguel', tipo: 'despesa' },
+    { nome: 'Água', tipo: 'despesa' }, { nome: 'Luz', tipo: 'despesa' },
+    { nome: 'Internet', tipo: 'despesa' }, { nome: 'Telefone', tipo: 'despesa' },
+    { nome: 'Alimentação', tipo: 'despesa' }, { nome: 'Transporte', tipo: 'despesa' },
+    { nome: 'Saúde', tipo: 'despesa' }, { nome: 'Educação', tipo: 'despesa' },
+    { nome: 'Lazer', tipo: 'despesa' }, { nome: 'Assinaturas', tipo: 'despesa' },
+    { nome: 'Impostos', tipo: 'despesa' }, { nome: 'Outros', tipo: 'ambos' }
   ];
 }
 

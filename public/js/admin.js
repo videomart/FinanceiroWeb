@@ -284,17 +284,16 @@ const PageAdmin = {
         </div>
         <div class="table-container">
           <table>
-            <thead><tr><th>ID</th><th>Nome</th><th>Tipo</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Nome</th><th>Tipo</th><th>Ações</th></tr></thead>
             <tbody>
               ${cats.map(c => `
                 <tr>
-                  <td>${c.id}</td>
                   <td><strong>${c.nome}</strong></td>
                   <td><span class="badge badge-${c.tipo === 'receita' ? 'success' : c.tipo === 'despesa' ? 'danger' : 'info'}">${c.tipo}</span></td>
                   <td>
                     <div class="btn-group">
-                      <button class="btn btn-sm btn-outline" onclick="PageAdmin.openCategoriaModal(${c.id})">Editar</button>
-                      <button class="btn btn-sm btn-danger" onclick="PageAdmin.excluirCategoria(${c.id})">Excluir</button>
+                      <button class="btn btn-sm btn-outline" onclick="PageAdmin.openCategoriaModal('${encodeURIComponent(c.nome)}')">Editar</button>
+                      <button class="btn btn-sm btn-danger" onclick="PageAdmin.excluirCategoria('${encodeURIComponent(c.nome)}')">Excluir</button>
                     </div>
                   </td>
                 </tr>
@@ -308,48 +307,42 @@ const PageAdmin = {
     }
   },
 
-  openCategoriaModal(id) {
-    const cats = [];
-    const c = id ? { nome: document.querySelector(`#adminContent table tbody tr:nth-child(${id}) td:nth-child(2)`)?.textContent, tipo: '' } : { nome: '', tipo: 'despesa' };
+  async openCategoriaModal(encodedNome) {
+    let cat = { nome: '', tipo: 'despesa' };
+    if (encodedNome) {
+      const cats = await API.get('/api/categorias');
+      cat = cats.find(x => encodeURIComponent(x.nome) === encodedNome) || cat;
+    }
     App.openModal(
-      id ? 'Editar Categoria' : 'Nova Categoria',
+      encodedNome ? 'Editar Categoria' : 'Nova Categoria',
       `
         <div class="form-group">
           <label>Nome</label>
-          <input class="form-control" id="inputCatNome" value="${c.nome || ''}" placeholder="Nome da categoria">
+          <input class="form-control" id="inputCatNome" value="${cat.nome || ''}" placeholder="Nome da categoria">
         </div>
         <div class="form-group">
           <label>Tipo</label>
           <select class="form-control" id="inputCatTipo">
-            <option value="despesa" ${(!id || c.tipo === 'despesa') ? 'selected' : ''}>Despesa</option>
-            <option value="receita" ${c.tipo === 'receita' ? 'selected' : ''}>Receita</option>
-            <option value="ambos" ${c.tipo === 'ambos' ? 'selected' : ''}>Ambos</option>
+            <option value="despesa" ${(!encodedNome || cat.tipo === 'despesa') ? 'selected' : ''}>Despesa</option>
+            <option value="receita" ${cat.tipo === 'receita' ? 'selected' : ''}>Receita</option>
+            <option value="ambos" ${cat.tipo === 'ambos' ? 'selected' : ''}>Ambos</option>
           </select>
         </div>
       `,
       `
         <button class="btn btn-outline" onclick="App.closeModal()">Cancelar</button>
-        <button class="btn btn-primary" onclick="PageAdmin.salvarCategoria(${id || ''})">Salvar</button>
+        <button class="btn btn-primary" onclick="PageAdmin.salvarCategoria('${encodedNome || ''}')">Salvar</button>
       `
     );
-    if (id) {
-      API.get('/api/categorias').then(cats => {
-        const cat = cats.find(x => x.id === id);
-        if (cat) {
-          document.getElementById('inputCatNome').value = cat.nome;
-          document.getElementById('inputCatTipo').value = cat.tipo;
-        }
-      });
-    }
   },
 
-  async salvarCategoria(id) {
+  async salvarCategoria(encodedNome) {
     const nome = document.getElementById('inputCatNome').value.trim();
     const tipo = document.getElementById('inputCatTipo').value;
     if (!nome) return alert('Nome é obrigatório');
     try {
-      if (id) {
-        await API.put(`/api/categorias/${id}`, { nome, tipo });
+      if (encodedNome) {
+        await API.put(`/api/categorias/${encodedNome}`, { nome, tipo });
       } else {
         await API.post('/api/categorias', { nome, tipo });
       }
@@ -360,10 +353,10 @@ const PageAdmin = {
     }
   },
 
-  async excluirCategoria(id) {
+  async excluirCategoria(encodedNome) {
     if (!confirm('Excluir esta categoria?')) return;
     try {
-      await API.del(`/api/categorias/${id}`);
+      await API.del(`/api/categorias/${encodedNome}`);
       this.renderCategorias(document.getElementById('adminContent'));
     } catch (e) {
       alert('Erro: ' + e.message);

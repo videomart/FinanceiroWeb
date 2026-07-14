@@ -29,6 +29,8 @@ if (config.google.clientID && config.google.clientSecret) {
       const avatar = profile.photos?.[0]?.value || '';
       const googleId = profile.id;
 
+      console.log('[Auth] Login tentativa - email:', email, 'googleId:', googleId);
+
       let user = db.prepare('SELECT * FROM usuarios WHERE google_id = ?').get(googleId);
 
       if (!user) {
@@ -65,8 +67,8 @@ if (config.google.clientID && config.google.clientSecret) {
 function seedCategoriasForClient(clienteId) {
   const { CATEGORIAS_BASE } = require('./database');
   const insert = db.prepare('INSERT OR IGNORE INTO categorias (nome, tipo, cliente_id) VALUES (?, ?, ?)');
-  for (const [nome, tipo] of CATEGORIAS_BASE) {
-    try { insert.run(nome, tipo, clienteId); } catch (e) { }
+  for (const [catNome, catTipo] of CATEGORIAS_BASE) {
+    try { insert.run(catNome, catTipo, clienteId); } catch (e) { }
   }
   db.persist();
 }

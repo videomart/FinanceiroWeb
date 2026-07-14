@@ -72,7 +72,7 @@ const PageContasReceber = {
   },
 
   async abrirForm(id) {
-    let c = { descricao: '', valor: '', data_vencimento: '', categoria_id: '', observacao: '', recorrente: false, frequencia: '' };
+    let c = { descricao: '', valor: '', data_vencimento: '', categoria_nome: '', observacao: '', recorrente: false, frequencia: '' };
     if (id) {
       try { c = await API.get(`/api/contas-receber/${id}`); } catch (e) { return; }
     }
@@ -95,9 +95,9 @@ const PageContasReceber = {
       </div>
       <div class="form-group">
         <label>Categoria <small style="cursor:pointer;color:var(--primary);text-decoration:underline" onclick="window.open('#/configuracoes','_self');setTimeout(()=>PageAdmin.switchTab('categorias'),100)">(gerenciar)</small></label>
-        <select class="form-control" id="f_categoria_id">
+        <select class="form-control" id="f_categoria_nome">
           <option value="">Selecione...</option>
-          ${cats.filter(cat => cat.tipo === 'receita' || cat.tipo === 'ambos').map(cat => `<option value="${cat.id}" ${cat.id === c.categoria_id ? 'selected' : ''}>${cat.nome}</option>`).join('')}
+          ${cats.filter(cat => cat.tipo === 'receita' || cat.tipo === 'ambos').map(cat => `<option value="${cat.nome}" ${cat.nome === c.categoria_nome ? 'selected' : ''}>${cat.nome}</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
@@ -137,7 +137,7 @@ const PageContasReceber = {
       descricao: document.getElementById('f_descricao').value,
       valor: parseFloat(document.getElementById('f_valor').value) || 0,
       data_vencimento: document.getElementById('f_data_vencimento').value,
-      categoria_id: parseInt(document.getElementById('f_categoria_id').value) || null,
+      categoria_nome: document.getElementById('f_categoria_nome').value || null,
       observacao: document.getElementById('f_observacao').value,
       recorrente: document.getElementById('f_recorrente').checked,
       frequencia: document.getElementById('f_recorrente').checked ? document.getElementById('f_frequencia').value : null

@@ -13,9 +13,9 @@ function calcularProximoVencimento(dataAtual, frequencia) {
 
 function gerarProximaRecorrente(conta) {
   const novaData = calcularProximoVencimento(conta.data_vencimento, conta.frequencia);
-  db.prepare(`INSERT INTO contas_pagar (descricao, valor, data_vencimento, categoria_id, observacao, recorrente, frequencia, codigo_barras, linha_digitavel, cliente_id)
+  db.prepare(`INSERT INTO contas_pagar (descricao, valor, data_vencimento, categoria_nome, observacao, recorrente, frequencia, codigo_barras, linha_digitavel, cliente_id)
     VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`).run(
-    conta.descricao, conta.valor, novaData, conta.categoria_id, conta.observacao,
+    conta.descricao, conta.valor, novaData, conta.categoria_nome, conta.observacao,
     conta.frequencia, conta.codigo_barras, conta.linha_digitavel, conta.cliente_id
   );
 }
@@ -28,8 +28,8 @@ router.get('/', (req, res) => {
   let whereTotal = 'WHERE cliente_id = ?';
   const params = [clienteId];
   if (status) { whereRows += ' AND cp.status = ?'; whereTotal += ' AND status = ?'; params.push(status); }
-  const rows = db.prepare(`SELECT cp.*, c.nome as categoria_nome
-    FROM contas_pagar cp LEFT JOIN categorias c ON cp.categoria_id = c.id
+  const rows = db.prepare(`SELECT cp.*, cp.categoria_nome as categoria_nome
+    FROM contas_pagar cp
     ${whereRows} ORDER BY cp.data_vencimento ASC LIMIT ? OFFSET ?`).all(...params, Number(limit), offset);
   const total = db.prepare('SELECT COUNT(*) as c FROM contas_pagar ' + whereTotal).get(...params).c;
   res.json({ rows, total, page: Number(page), limit: Number(limit) });
@@ -40,27 +40,27 @@ router.get('/estatisticas', (req, res) => {
   const pendentes = db.prepare(`SELECT COUNT(*) as quantidade, COALESCE(SUM(valor),0) as total FROM contas_pagar WHERE status='pendente' AND cliente_id=?`).get(clienteId);
   const atrasadas = db.prepare(`SELECT COUNT(*) as quantidade, COALESCE(SUM(valor),0) as total FROM contas_pagar WHERE status IN ('atrasado','pendente') AND data_vencimento < date('now') AND cliente_id=?`).get(clienteId);
   const pagas = db.prepare(`SELECT COUNT(*) as quantidade, COALESCE(SUM(valor_pago),0) as total FROM contas_pagar WHERE status='pago' AND cliente_id=?`).get(clienteId);
-  const proximas = db.prepare(`SELECT cp.*, c.nome as categoria_nome FROM contas_pagar cp LEFT JOIN categorias c ON cp.categoria_id = c.id WHERE cp.status='pendente' AND cp.data_vencimento BETWEEN date('now') AND date('now','+7 days') AND cp.cliente_id=? ORDER BY cp.data_vencimento`).all(clienteId);
+  const proximas = db.prepare(`SELECT cp.*, cp.categoria_nome as categoria_nome FROM contas_pagar cp WHERE cp.status='pendente' AND cp.data_vencimento BETWEEN date('now') AND date('now','+7 days') AND cp.cliente_id=? ORDER BY cp.data_vencimento`).all(clienteId);
   const recorrentes = db.prepare(`SELECT COUNT(*) as quantidade FROM contas_pagar WHERE recorrente=1 AND status='pendente' AND cliente_id=?`).get(clienteId);
   res.json({ pendentes, atrasadas, pagas, proximas, recorrentes });
 });
 
 router.get('/:id', (req, res) => {
   const clienteId = req.user.clienteId;
-  const row = db.prepare('SELECT cp.*, c.nome as categoria_nome FROM contas_pagar cp LEFT JOIN categorias c ON cp.categoria_id = c.id WHERE cp.id = ? AND cp.cliente_id = ?').get(req.params.id, clienteId);
+  const row = db.prepare('SELECT cp.*, cp.categoria_nome as categoria_nome FROM contas_pagar cp WHERE cp.id = ? AND cp.cliente_id = ?').get(req.params.id, clienteId);
   if (!row) return res.status(404).json({ error: 'Conta não encontrada' });
   res.json(row);
 });
 
 router.post('/', (req, res) => {
-  const { descricao, valor, data_vencimento, categoria_id, observacao, recorrente, frequencia, codigo_barras, linha_digitavel, data_emissao } = req.body;
+  const { descricao, valor, data_vencimento, categoria_nome, observacao, recorrente, frequencia, codigo_barras, linha_digitavel, data_emissao } = req.body;
   const clienteId = req.user.clienteId;
   if (!descricao || valor === undefined || !data_vencimento) {
     return res.status(400).json({ error: 'descricao, valor e data_vencimento são obrigatórios' });
   }
-  const result = db.prepare(`INSERT INTO contas_pagar (descricao, valor, data_vencimento, categoria_id, observacao, recorrente, frequencia, codigo_barras, linha_digitavel, data_emissao, cliente_id)
+  const result = db.prepare(`INSERT INTO contas_pagar (descricao, valor, data_vencimento, categoria_nome, observacao, recorrente, frequencia, codigo_barras, linha_digitavel, data_emissao, cliente_id)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
-    descricao, valor, data_vencimento, categoria_id || null, observacao || null,
+    descricao, valor, data_vencimento, categoria_nome || null, observacao || null,
     recorrente ? 1 : 0, frequencia || null, codigo_barras || null, linha_digitavel || null, data_emissao || null,
     clienteId
   );
@@ -71,13 +71,13 @@ router.put('/:id', (req, res) => {
   const clienteId = req.user.clienteId;
   const existing = db.prepare('SELECT * FROM contas_pagar WHERE id = ? AND cliente_id = ?').get(req.params.id, clienteId);
   if (!existing) return res.status(404).json({ error: 'Conta não encontrada' });
-  const { descricao, valor, data_vencimento, data_pagamento, valor_pago, categoria_id, status, observacao, recorrente, frequencia, codigo_barras, linha_digitavel } = req.body;
+  const { descricao, valor, data_vencimento, data_pagamento, valor_pago, categoria_nome, status, observacao, recorrente, frequencia, codigo_barras, linha_digitavel } = req.body;
   db.prepare(`UPDATE contas_pagar SET descricao=?, valor=?, data_vencimento=?, data_pagamento=?,
-    valor_pago=?, categoria_id=?, status=?, observacao=?, recorrente=?, frequencia=?,
+    valor_pago=?, categoria_nome=?, status=?, observacao=?, recorrente=?, frequencia=?,
     codigo_barras=?, linha_digitavel=?, updated_at=CURRENT_TIMESTAMP WHERE id=? AND cliente_id=?`).run(
     descricao ?? existing.descricao, valor ?? existing.valor,
     data_vencimento ?? existing.data_vencimento, data_pagamento ?? null,
-    valor_pago ?? null, categoria_id ?? existing.categoria_id,
+    valor_pago ?? null, categoria_nome ?? existing.categoria_nome,
     status ?? existing.status, observacao ?? null,
     recorrente !== undefined ? (recorrente ? 1 : 0) : existing.recorrente,
     frequencia ?? existing.frequencia, codigo_barras ?? existing.codigo_barras,
