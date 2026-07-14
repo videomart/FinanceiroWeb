@@ -32,21 +32,26 @@ if (config.google.clientID && config.google.clientSecret) {
       let user = db.prepare('SELECT * FROM usuarios WHERE google_id = ?').get(googleId);
 
       if (!user) {
-        let cliente = dominio ? db.prepare('SELECT id FROM clientes WHERE dominio = ?').get(dominio) : null;
-
-        if (!cliente) {
-          cliente = db.prepare('SELECT id FROM clientes WHERE id = 1').get();
+        user = db.prepare('SELECT * FROM usuarios WHERE email = ?').get(email);
+        if (user) {
+          db.prepare('UPDATE usuarios SET google_id = ? WHERE id = ?').run(googleId, user.id);
         }
-
-        const totalUsers = db.prepare('SELECT COUNT(*) as c FROM usuarios').get().c;
-        const papel = totalUsers === 0 ? 'admin' : 'usuario';
-        const r = db.prepare('INSERT INTO usuarios (cliente_id, google_id, email, nome, avatar, papel) VALUES (?, ?, ?, ?, ?, ?)').run(
-          cliente.id, googleId, email, nome, avatar, papel
-        );
-        user = { id: r.lastInsertRowid, cliente_id: cliente.id, nome, email, avatar, papel };
-      } else {
-        db.prepare('UPDATE usuarios SET ultimo_acesso = datetime("now","localtime"), nome = ?, avatar = ? WHERE id = ?').run(nome, avatar, user.id);
       }
+
+      if (!user) {
+        return done(null, false, { message: 'Usuário não cadastrado. Solicite acesso ao administrador.' });
+      }
+
+      if (user.ativo === 0) {
+        return done(null, false, { message: 'Usuário desativado. Solicite acesso ao administrador.' });
+      }
+
+      const cliente = db.prepare('SELECT * FROM clientes WHERE id = ?').get(user.cliente_id);
+      if (cliente && cliente.ativo === 0) {
+        return done(null, false, { message: 'Empresa desativada. Solicite acesso ao administrador.' });
+      }
+
+      db.prepare('UPDATE usuarios SET ultimo_acesso = datetime("now","localtime"), nome = ?, avatar = ? WHERE id = ?').run(nome, avatar, user.id);
 
       return done(null, { id: user.id, cliente_id: user.cliente_id, nome: user.nome, email: user.email, avatar: user.avatar, papel: user.papel });
     } catch (err) {
@@ -84,12 +89,19 @@ if (googleConfigured) {
     passport.authenticate('google', { scope: ['profile', 'email'], prompt: 'select_account' })
   );
 
-  router.get('/google/callback',
-    passport.authenticate('google', { failureRedirect: '/login.html?error=true' }),
-    (req, res) => {
-      res.redirect('/');
-    }
-  );
+  router.get('/google/callback', (req, res, next) => {
+    passport.authenticate('google', (err, user, info) => {
+      if (err) return next(err);
+      if (!user) {
+        const msg = encodeURIComponent(info?.message || 'Acesso não autorizado');
+        return res.redirect(`/login.html?error=${msg}`);
+      }
+      req.login(user, (err) => {
+        if (err) return next(err);
+        res.redirect('/');
+      });
+    })(req, res, next);
+  });
 } else {
   router.get('/google', (req, res) => {
     res.status(503).send(`

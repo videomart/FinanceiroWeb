@@ -147,8 +147,11 @@
 
   <script>
     const params = new URLSearchParams(window.location.search);
-    if (params.get('error') === 'true') {
-      document.getElementById('loginError').classList.add('visible');
+    const error = params.get('error');
+    if (error) {
+      const el = document.getElementById('loginError');
+      el.textContent = decodeURIComponent(error);
+      el.classList.add('visible');
     }
 
     async function devLogin() {
