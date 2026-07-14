@@ -56,6 +56,19 @@ class Database {
 
 async function initDatabase() {
   if (dbInstance) return;
+
+  const backupDir = path.join(dbDir, 'backups');
+  if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+  if (fs.existsSync(dbPath)) {
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const backupFile = path.join(backupDir, `financeiro_startup_${ts}.db`);
+    fs.copyFileSync(dbPath, backupFile);
+    const existingBackups = fs.readdirSync(backupDir)
+      .filter(f => f.startsWith('financeiro_startup_'))
+      .sort().reverse();
+    existingBackups.slice(20).forEach(f => fs.unlinkSync(path.join(backupDir, f)));
+  }
+
   const SQL = await initSqlJs();
   let sqlDb;
   if (fs.existsSync(dbPath)) {
