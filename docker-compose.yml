@@ -8,7 +8,23 @@ services:
       - ./config.json:/app/config.json
     environment:
       - PORT=3002
+      - SESSION_SECRET=coloque-uma-chave-aqui
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_CALLBACK_URL=https://contas.tvtupi.com.br/auth/google/callback
+      - VIRTUAL_HOST=contas.tvtupi.com.br
+      - VIRTUAL_PORT=3002
+      - LETSENCRYPT_HOST=contas.tvtupi.com.br
     restart: unless-stopped
+    networks:
+      - easymoney_default
+      - tvplay-web_default
 
 volumes:
   easymoney-data:
+
+networks:
+  easymoney_default:
+    external: true
+  tvplay-web_default:
+    external: true
