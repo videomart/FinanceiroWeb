@@ -4,7 +4,7 @@ const path = require('path');
 function loadConfig() {
   const configPath = path.join(__dirname, 'config.json');
   const defaults = {
-    port: 3001,
+    port: 3002,
     session: { secret: 'easymoney-default-secret' },
     google: { clientID: '', clientSecret: '', callbackURL: '' },
     smtp: { host: '', port: 587, secure: false, user: '', pass: '', from: '' }

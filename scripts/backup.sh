@@ -4,8 +4,10 @@
 
 set -e
 
-DB_PATH="/home/ubuntu/projects/EasyMoney/data/financeiro.db"
-BACKUP_DIR="/home/ubuntu/projects/EasyMoney/data/backups"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+DB_PATH="$PROJECT_DIR/data/financeiro.db"
+BACKUP_DIR="$PROJECT_DIR/data/backups"
 MOTIVO="${1:-backup-automatico}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="${BACKUP_DIR}/financeiro_${MOTIVO}_${TIMESTAMP}.db"

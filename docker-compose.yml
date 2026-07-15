@@ -2,12 +2,12 @@ services:
   easymoney:
     build: .
     ports:
-      - "3002:3002"
+      - "${PORT:-3002}:${PORT:-3002}"
     volumes:
       - ./data:/app/data
       - ./config.json:/app/config.json
     environment:
-      - PORT=3002
+      - PORT=${PORT:-3002}
       - SESSION_SECRET=coloque-uma-chave-aqui
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
@@ -19,7 +19,7 @@ services:
       - SMTP_PASS=${SMTP_PASS}
       - SMTP_FROM=${SMTP_FROM}
       - VIRTUAL_HOST=contas.tvtupi.com.br
-      - VIRTUAL_PORT=3002
+      - VIRTUAL_PORT=${PORT:-3002}
       - LETSENCRYPT_HOST=contas.tvtupi.com.br
     restart: unless-stopped
     networks:

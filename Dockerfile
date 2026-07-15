@@ -8,6 +8,6 @@ RUN npm ci --only=production
 COPY . .
 COPY config.example.json ./config.example.json
 
-EXPOSE 3001
+EXPOSE 3002
 
 CMD ["node", "server.js"]

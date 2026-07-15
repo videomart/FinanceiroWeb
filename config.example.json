@@ -1,12 +1,12 @@
 
 {
-  "port": 3001,
+  "port": 3002,
   "session": {
     "secret": "gerar-uma-chave-aleatoria-segura"
   },
   "google": {
     "clientID": "SEU_GOOGLE_CLIENT_ID",
     "clientSecret": "SEU_GOOGLE_CLIENT_SECRET",
-    "callbackURL": "http://localhost:3001/auth/google/callback"
+    "callbackURL": "http://localhost:3002/auth/google/callback"
   }
 }

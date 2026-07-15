@@ -61,6 +61,7 @@ router.post('/', (req, res) => {
     descricao, valor, data_vencimento, categoria_nome || null, observacao || null,
     recorrente ? 1 : 0, frequencia || null, clienteId
   );
+  db.persist();
   res.status(201).json(db.prepare('SELECT * FROM contas_receber WHERE id = ?').get(result.lastInsertRowid));
 });
 
@@ -78,6 +79,7 @@ router.put('/:id', (req, res) => {
     recorrente !== undefined ? (recorrente ? 1 : 0) : existing.recorrente,
     frequencia ?? existing.frequencia, req.params.id, clienteId
   );
+  db.persist();
   res.json(db.prepare('SELECT * FROM contas_receber WHERE id = ?').get(req.params.id));
 });
 
@@ -93,6 +95,7 @@ router.put('/:id/receber', (req, res) => {
   if (conta.recorrente && conta.frequencia) {
     gerarProximaRecorrente(conta);
   }
+  db.persist();
   res.json(db.prepare('SELECT * FROM contas_receber WHERE id = ?').get(req.params.id));
 });
 
@@ -101,6 +104,7 @@ router.delete('/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM contas_receber WHERE id = ? AND cliente_id = ?').get(req.params.id, clienteId);
   if (!existing) return res.status(404).json({ error: 'Conta não encontrada' });
   db.prepare('DELETE FROM contas_receber WHERE id = ? AND cliente_id = ?').run(req.params.id, clienteId);
+  db.persist();
   res.json({ message: 'Conta removida' });
 });
 

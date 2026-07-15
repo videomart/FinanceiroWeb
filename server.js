@@ -47,7 +47,7 @@ app.get('*', ensureAuth, (req, res) => {
 });
 
 initDatabase().then(() => {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`Servidor rodando em http://localhost:${PORT}`);
     if (!config.google.clientID || !config.google.clientSecret) {
       console.log('\nGoogle OAuth não configurado. Para ativar:');
@@ -77,6 +77,18 @@ initDatabase().then(() => {
       console.log('[Notificação] Verificação diária de contas a vencer agendada às 08:00');
       agendarProximaVerificacao();
     }
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`\nErro: a porta ${PORT} já está em uso.`);
+      console.error('Para usar outra porta, defina a variável de ambiente PORT antes de iniciar. Exemplos:');
+      console.error(`  PORT=3005 npm start`);
+      console.error(`  PORT=3005 docker compose up -d`);
+      console.error('Você também pode definir "port" em config.json.\n');
+      process.exit(1);
+    }
+    throw err;
   });
 }).catch(err => {
   console.error('Erro ao inicializar banco de dados:', err);
