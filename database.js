@@ -54,21 +54,23 @@ class Database {
   }
 }
 
-async function initDatabase() {
-  if (dbInstance) return;
-
+function backupCurrentFile(motivo) {
   const backupDir = path.join(dbDir, 'backups');
   if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
   if (fs.existsSync(dbPath)) {
     const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const backupFile = path.join(backupDir, `financeiro_startup_${ts}.db`);
+    const backupFile = path.join(backupDir, `financeiro_${motivo}_${ts}.db`);
     fs.copyFileSync(dbPath, backupFile);
     const existingBackups = fs.readdirSync(backupDir)
-      .filter(f => f.startsWith('financeiro_startup_'))
+      .filter(f => f.startsWith(`financeiro_${motivo}_`))
       .sort().reverse();
     existingBackups.slice(20).forEach(f => fs.unlinkSync(path.join(backupDir, f)));
+    return backupFile;
   }
+  return null;
+}
 
+async function loadDatabaseFromDisk() {
   const SQL = await initSqlJs();
   let sqlDb;
   if (fs.existsSync(dbPath)) {
@@ -86,7 +88,17 @@ async function initDatabase() {
   deduplicateCategorias(inst);
   ensureAdminUser(inst);
   inst.persist();
-  dbInstance = inst;
+  return inst;
+}
+
+async function initDatabase() {
+  if (dbInstance) return;
+  backupCurrentFile('startup');
+  dbInstance = await loadDatabaseFromDisk();
+}
+
+async function reloadDatabase() {
+  dbInstance = await loadDatabaseFromDisk();
 }
 
 const db = new Proxy({}, {
@@ -400,4 +412,4 @@ function deduplicateCategorias(d) {
   if (removed > 0) console.log('[DB] ' + removed + ' categorias duplicadas (acentos) removidas');
 }
 
-module.exports = { initDatabase, db, CATEGORIAS_BASE };
+module.exports = { initDatabase, reloadDatabase, backupCurrentFile, db, dbPath, CATEGORIAS_BASE };

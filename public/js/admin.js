@@ -12,6 +12,7 @@ const PageAdmin = {
           <button class="btn ${this.currentTab === 'usuarios' ? 'btn-primary' : 'btn-outline'}" onclick="PageAdmin.switchTab('usuarios')">Usuários</button>
           <button class="btn ${this.currentTab === 'categorias' ? 'btn-primary' : 'btn-outline'}" onclick="PageAdmin.switchTab('categorias')">Categorias</button>
           <button class="btn ${this.currentTab === 'notificacoes' ? 'btn-primary' : 'btn-outline'}" onclick="PageAdmin.switchTab('notificacoes')">Notificações</button>
+          <button class="btn ${this.currentTab === 'backup' ? 'btn-primary' : 'btn-outline'}" onclick="PageAdmin.switchTab('backup')">Backup</button>
         </div>
         <div id="adminContent"></div>
       </div>
@@ -22,7 +23,7 @@ const PageAdmin = {
   switchTab(tab) {
     this.currentTab = tab;
     document.querySelectorAll('.admin-tabs .btn').forEach(b => b.className = 'btn btn-outline');
-    const tabNames = { clientes: 'Clientes', usuarios: 'Usuários', categorias: 'Categorias', notificacoes: 'Notificações' };
+    const tabNames = { clientes: 'Clientes', usuarios: 'Usuários', categorias: 'Categorias', notificacoes: 'Notificações', backup: 'Backup' };
     document.querySelectorAll('.admin-tabs .btn').forEach(b => {
       if (b.textContent === tabNames[tab]) b.className = 'btn btn-primary';
     });
@@ -37,6 +38,8 @@ const PageAdmin = {
       await this.renderCategorias(el);
     } else if (this.currentTab === 'notificacoes') {
       await this.renderNotificacoes(el);
+    } else if (this.currentTab === 'backup') {
+      await this.renderBackup(el);
     } else {
       await this.renderUsuarios(el);
     }
@@ -459,6 +462,47 @@ const PageAdmin = {
       const res = await API.post('/api/admin/email/verificar');
       alert(res.message || 'Verificação concluída!');
       this.renderNotificacoes(document.getElementById('adminContent'));
+    } catch (e) {
+      alert('Erro: ' + e.message);
+    }
+  },
+
+  async renderBackup(el) {
+    el.innerHTML = `
+      <div style="max-width:560px">
+        <h4 style="margin:0 0 8px">Exportar banco de dados</h4>
+        <p style="color:var(--text-secondary);font-size:.9rem;margin-bottom:12px">
+          Baixa um arquivo .db com todos os dados desta instância (clientes, usuários, categorias, contas).
+          Use para migrar para outro servidor.
+        </p>
+        <a class="btn btn-primary" href="/api/admin/backup/export">Baixar backup (.db)</a>
+
+        <h4 style="margin:24px 0 8px">Importar banco de dados</h4>
+        <p style="color:var(--text-secondary);font-size:.9rem;margin-bottom:12px">
+          <strong>Atenção:</strong> importar substitui TODOS os dados atuais desta instância pelos dados do arquivo.
+          Um backup do estado atual é salvo automaticamente antes da substituição, mas confirme que é isso que deseja.
+        </p>
+        <input type="file" id="inputBackupFile" accept=".db" class="form-control" style="margin-bottom:12px">
+        <button class="btn btn-danger" onclick="PageAdmin.importarBackup()">Importar e substituir dados</button>
+      </div>
+    `;
+  },
+
+  async importarBackup() {
+    const input = document.getElementById('inputBackupFile');
+    const file = input.files[0];
+    if (!file) return alert('Selecione um arquivo .db para importar');
+    if (!confirm('Isso vai substituir TODOS os dados atuais por este arquivo. Um backup do estado atual será feito automaticamente. Confirma?')) return;
+
+    const formData = new FormData();
+    formData.append('arquivo', file);
+
+    try {
+      const res = await fetch('/api/admin/backup/import', { method: 'POST', credentials: 'include', body: formData });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Falha ao importar');
+      alert(data.message || 'Importado com sucesso!');
+      input.value = '';
     } catch (e) {
       alert('Erro: ' + e.message);
     }

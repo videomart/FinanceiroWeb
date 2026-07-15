@@ -1,8 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { db } = require('../database');
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
+const initSqlJs = require('sql.js');
+const { db, dbPath, reloadDatabase, backupCurrentFile } = require('../database');
 const { sendEmail, verificarEEnviarNotificacoes, getTransporter } = require('../emailService');
 const config = require('../config');
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 function ensureAdmin(req, res, next) {
   if (req.user && req.user.papel === 'admin') return next();
@@ -188,6 +194,50 @@ router.get('/email/notificacoes', (req, res) => {
     LIMIT 100
   `).all();
   res.json(rows);
+});
+
+router.get('/backup/export', (req, res) => {
+  db.persist();
+  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  res.download(dbPath, `easymoney_${ts}.db`);
+});
+
+router.post('/backup/import', upload.single('arquivo'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+
+  const SQL = await initSqlJs();
+  let uploadedDb;
+  try {
+    uploadedDb = new SQL.Database(req.file.buffer);
+
+    const integrity = uploadedDb.exec('PRAGMA integrity_check');
+    const result = integrity[0]?.values?.[0]?.[0];
+    if (result !== 'ok') {
+      return res.status(400).json({ error: 'Arquivo com integridade comprometida: ' + result });
+    }
+
+    const requiredTables = ['clientes', 'usuarios', 'categorias', 'contas_pagar', 'contas_receber'];
+    const tables = uploadedDb.exec("SELECT name FROM sqlite_master WHERE type='table'");
+    const tableNames = tables[0]?.values?.map(v => v[0]) || [];
+    const missing = requiredTables.filter(t => !tableNames.includes(t));
+    if (missing.length > 0) {
+      return res.status(400).json({ error: 'Arquivo não parece ser um banco EasyMoney. Tabelas ausentes: ' + missing.join(', ') });
+    }
+  } catch (e) {
+    return res.status(400).json({ error: 'Arquivo inválido: não é um banco SQLite válido' });
+  } finally {
+    if (uploadedDb) uploadedDb.close();
+  }
+
+  const backupFile = backupCurrentFile('pre-import');
+  fs.writeFileSync(dbPath, req.file.buffer);
+  await reloadDatabase();
+
+  res.json({
+    success: true,
+    message: 'Banco de dados importado com sucesso.',
+    backupAnterior: backupFile ? path.basename(backupFile) : null
+  });
 });
 
 module.exports = router;
